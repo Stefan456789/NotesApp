@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/itemRoot"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    app:circularflow_radiusInDP="10dp">
+
+    <CheckBox
+        android:id="@+id/isDone"
+        android:layout_width="32dp"
+        android:layout_height="match_parent"
+        android:text="CheckBox" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/itemMessage"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="NaN"
+            android:textSize="16sp" />
+
+        <TextView
+            android:id="@+id/itemDateTime"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="NaN"
+            android:textSize="10sp" />
+    </LinearLayout>
+
+</LinearLayout>

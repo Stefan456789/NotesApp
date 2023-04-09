@@ -1,0 +1,29 @@
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <CheckBoxPreference
+        android:defaultValue="false"
+        android:key="showOverdueNotes"
+        android:title="Show overdue notes"
+        app:defaultValue="true" />
+
+    <com.skydoves.colorpickerpreference.ColorPickerPreference
+        android:key="doneNoteBackground"
+        android:title="Done Note Color"
+        app:preference_attachAlphaSlideBar="false"
+        app:preference_attachBrightnessSlideBar="false"
+        app:preference_dialog_negative="Cancel"
+        app:preference_dialog_positive="Confirm"
+        app:default_color="@color/light_green"
+        app:preference_dialog_title="Color for done Notes"/>
+
+    <com.skydoves.colorpickerpreference.ColorPickerPreference
+        android:key="overdueNoteBackground"
+        android:title="Overdue Note Color"
+        app:preference_attachAlphaSlideBar="false"
+        app:preference_attachBrightnessSlideBar="false"
+        app:preference_dialog_negative="Cancel"
+        app:preference_dialog_positive="Confirm"
+        app:default_color="@color/light_red"
+        app:preference_dialog_title="Color for overdue Notes"/>
+</PreferenceScreen>
