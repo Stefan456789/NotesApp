@@ -3,14 +3,18 @@ package me.stefan.notes;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 import androidx.preference.PreferenceManager;
 
 import android.app.DatePickerDialog;
+import android.app.ProgressDialog;
 import android.app.TimePickerDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.ContextMenu;
@@ -41,20 +45,25 @@ public class MainActivity extends AppCompatActivity {
     private static final String FILE_NAME = "save.csv";
     private static final int REQUESTCODE_SETTINGS = 1;
     public static NotesAdapter adapter;
-    public static ListView list;
+    public ListView list;
+    private SharedPreferences.OnSharedPreferenceChangeListener preferencesChangeListener;
+    public boolean tryOnlineSync = false;
+    public Backend backend = null;
 
     @RequiresApi(api = Build.VERSION_CODES.O)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        prefs = PreferenceManager.getDefaultSharedPreferences(this );
+
         setUpSharedPreferences();
+
+
         try {
             BufferedReader r = new BufferedReader(new InputStreamReader(openFileInput(FILE_NAME)));
             Arrays.stream(r.readLine().split(";")).forEach(x ->{
                 String[] parts = x.split(",");
-                notes.add(new Note(parts[2],LocalDate.parse(parts[0]),LocalTime.parse(parts[1])));
+                notes.add(new Note(parts[2],LocalDate.parse(parts[0]),LocalTime.parse(parts[1]), Boolean.parseBoolean(parts[3])));
             });
         } catch (IOException | NullPointerException e ) {
             Toast.makeText(this, "Es wurden keine bestehende Notizen gefunden!", Toast.LENGTH_SHORT).show();
@@ -68,15 +77,25 @@ public class MainActivity extends AppCompatActivity {
         registerForContextMenu(list);
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.O)
     private void setUpSharedPreferences() {
         prefs = PreferenceManager.getDefaultSharedPreferences(this);
-        SharedPreferences.OnSharedPreferenceChangeListener preferencesChangeListener = this::onPreferenceChanged;
+        preferencesChangeListener = this::onPreferenceChanged;
         prefs.registerOnSharedPreferenceChangeListener( preferencesChangeListener );
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.O)
     private void onPreferenceChanged(SharedPreferences sharedPrefs, String key) {
-        adapter.getFilter().filter("" + sharedPrefs.getBoolean("showOverdueNotes", false));
-        list.setAdapter(adapter);
+
+        applyFilter(sharedPrefs);
+        list.invalidateViews();
+    }
+
+    private void applyFilter(SharedPreferences sharedPrefs) {
+        adapter.getFilter().filter("" + sharedPrefs.getBoolean("showOverdueNotes", true));
+    }
+    private void applyFilter() {
+        applyFilter(prefs);
     }
 
     @Override
@@ -87,6 +106,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreateContextMenu(menu, v, menuInfo);
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.O)
     @Override
     public boolean onContextItemSelected(MenuItem item) {
         AdapterView.AdapterContextMenuInfo info = (AdapterView.AdapterContextMenuInfo) item.getMenuInfo();
@@ -95,7 +115,6 @@ public class MainActivity extends AppCompatActivity {
             switch (item.getItemId()){
                 case R.id.edit:
                     openNoteEditor(this, n);
-                    adapter.notifyDataSetChanged();
                     break;
                 case R.id.details:
                     LinearLayout root = new LinearLayout(this);
@@ -120,7 +139,13 @@ public class MainActivity extends AppCompatActivity {
                     break;
                 case R.id.delete:
                     notes.remove(n);
+                    applyFilter();
                     adapter.notifyDataSetChanged();
+                    break;
+
+                case R.id.toggleDone:
+                    n.done = !n.done;
+                    list.invalidateViews();
                     break;
             }
 
@@ -140,8 +165,7 @@ public class MainActivity extends AppCompatActivity {
         int id = item.getItemId() ;
         switch (id ) {
             case R.id.newNote:
-                Context context = this;
-                openNoteEditor(context, null);
+                openNoteEditor(this, null);
                 break;
             case R.id.saveNote:
                 try {
@@ -164,14 +188,60 @@ public class MainActivity extends AppCompatActivity {
                 startActivityForResult(intent, REQUESTCODE_SETTINGS);
 
                 break;
+            case R.id.syncNote:
+                tryOnlineSync = !tryOnlineSync;
+                if (tryOnlineSync){
+
+                    new AlertDialog.Builder(this)
+                            .setTitle("You are not logged in!")
+                            .setMessage("Do you want to register or login?")
+                            .setNeutralButton("Cancel", null)
+                            .setPositiveButton("Login", (dialogInterface, i) -> {
+                                View root = getLayoutInflater().inflate(R.layout.dialog_login, null);
+                                new AlertDialog.Builder(this)
+                                        .setTitle("Login")
+                                        .setNegativeButton("Cancel", null)
+                                        .setPositiveButton("Login", (dialogInterface1, i1) -> {
+                                            ProgressDialog dialog = ProgressDialog.show(root.getContext(), "", "Loading. Please wait...", true);
+                                            backend = Backend.login(
+                                                    ((EditText)root.findViewById(R.id.loginUsername)).getText().toString(),
+                                                    ((EditText)root.findViewById(R.id.loginPassword)).getText().toString(),
+                                                    dialog::dismiss);
+                                        })
+                                        .setView(root).show();
+                            })
+                            .setNegativeButton("Register", (x, y) -> {
+                                View root = getLayoutInflater().inflate(R.layout.dialog_register, null);
+                                new AlertDialog.Builder(this)
+                                        .setTitle("Register")
+                                        .setNegativeButton("Cancel", null)
+                                        .setPositiveButton("Login", (dialogInterface1, i1) -> {
+                                            ProgressDialog dialog = ProgressDialog.show(root.getContext(), "", "Loading. Please wait...", true);
+                                            backend = Backend.register(
+                                                    ((EditText)root.findViewById(R.id.registerName)).getText().toString(),
+                                                    ((EditText)root.findViewById(R.id.registerUsername)).getText().toString(),
+                                                    ((EditText)root.findViewById(R.id.registerPassword)).getText().toString(),
+                                                    dialog::dismiss);
+                                        })
+                                        .setView(root)
+                                        .show();
+                            })
+                            .show();
+                    item.setIcon(ContextCompat.getDrawable(this, R.drawable.cloudsyncgreen));
+                } else {
+                    item.setIcon(ContextCompat.getDrawable(this, R.drawable.cloudsync));
+                }
+
+                break;
+
         }
         return super.onOptionsItemSelected(item);
     }
 
-    private Note openNoteEditor(Context context, Note n) {
+    private void openNoteEditor(Context context, Note n) {
         View root = getLayoutInflater().inflate(R.layout.dialog_add, null);
         if (n != null){
-            ((EditText)root.findViewById(R.id.message)).setText(n.note);
+            ((EditText)root.findViewById(R.id.editTextNote)).setText(n.note);
             ((EditText)root.findViewById(R.id.editTextDate)).setText(n.date.toString());
             ((EditText)root.findViewById(R.id.editTextTime)).setText(n.time.toString());
         }
@@ -193,7 +263,6 @@ public class MainActivity extends AppCompatActivity {
                         edit.setText(year + "-" + month + "-" + day);
                     }
                 }, LocalDate.now().getYear(), LocalDate.now().getMonth().getValue()-1, LocalDate.now().getDayOfMonth());
-                dialog.getDatePicker().setMinDate(System.currentTimeMillis());
                 dialog.show();
 
             }
@@ -217,29 +286,36 @@ public class MainActivity extends AppCompatActivity {
 
             }
         });
-        final Note[] returnVal = {null};
         new AlertDialog.Builder(this)
                 .setPositiveButton("OK", new DialogInterface.OnClickListener() {
                     @RequiresApi(api = Build.VERSION_CODES.O)
                     @Override
                     public void onClick(DialogInterface dialogInterface, int i) {
-                        EditText note = root.findViewById(R.id.message);
+                        EditText note = root.findViewById(R.id.editTextNote);
                         EditText date = root.findViewById(R.id.editTextDate);
                         EditText time = root.findViewById(R.id.editTextTime);
 
-                        if (note.getText().toString().isEmpty() || date.getText().toString().isEmpty() || time.getText().toString().isEmpty())
+                        if (note.getText().toString().isEmpty() || date.getText().toString().isEmpty() || time.getText().toString().isEmpty()) {
+                            Toast.makeText(context, "All fields must be filled!", Toast.LENGTH_LONG).show();
                             return;
+                        }
 
                         if (n != null){
                             n.note = note.getText().toString();
                             n.date = LocalDate.parse(date.getText().toString());
                             n.time = LocalTime.parse(time.getText().toString());
-                            returnVal[0] = n;
-                        } else {
-                            Note newNote = new Note(note.getText().toString(), LocalDate.parse(date.getText().toString()), LocalTime.parse(time.getText().toString()));
-                            notes.add(newNote);
+                            applyFilter();
                             adapter.notifyDataSetChanged();
-                            returnVal[0] = newNote;
+                        } else {
+                            try {
+                                Note newNote = new Note(note.getText().toString(), LocalDate.parse(date.getText().toString()), LocalTime.parse(time.getText().toString()), false);
+                                notes.add(newNote);
+                            } catch (Exception ex){
+                                Toast.makeText(context, "Please enter a valid date and time!", Toast.LENGTH_LONG).show();
+                                return;
+                            }
+                            applyFilter();
+                            adapter.notifyDataSetChanged();
                         }
 
                     }
@@ -248,6 +324,11 @@ public class MainActivity extends AppCompatActivity {
                 .setView(root)
                 .setTitle("Neue Notiz")
                 .show();
-        return returnVal[0];
+    }
+
+    private boolean isNetworkAvailable ( ) {
+        ConnectivityManager connectivityManager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
+        return activeNetworkInfo != null && activeNetworkInfo.isConnected();
     }
 }

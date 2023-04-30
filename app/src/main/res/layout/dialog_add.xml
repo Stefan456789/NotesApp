@@ -10,7 +10,7 @@
     android:paddingBottom="5dp">
 
     <EditText
-        android:id="@+id/message"
+        android:id="@+id/editTextNote"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:ems="10"

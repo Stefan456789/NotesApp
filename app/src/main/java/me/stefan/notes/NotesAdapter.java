@@ -1,9 +1,14 @@
 package me.stefan.notes;
 
+import android.app.ProgressDialog;
 import android.content.Context;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.Build;
+import android.os.Message;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -12,6 +17,7 @@ import android.widget.CheckBox;
 import android.widget.Filter;
 import android.widget.Filterable;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.RequiresApi;
 import androidx.core.content.ContextCompat;
@@ -25,7 +31,6 @@ public class NotesAdapter extends BaseAdapter implements Filterable {
     private List<Note> filteredNotes;
     private final MainActivity ctx;
     private final LayoutInflater inflater;
-    private Drawable originalBgDrawable;
 
     @RequiresApi(api = Build.VERSION_CODES.O)
     public NotesAdapter(MainActivity ctx, List<Note> notes) {
@@ -57,23 +62,26 @@ public class NotesAdapter extends BaseAdapter implements Filterable {
         Note n = filteredNotes.get(i);
         View listItem = (view == null) ? inflater.inflate(R.layout.listitem_note, null ) : view;
         ((TextView) listItem.findViewById(R.id.itemMessage)).setText(n.note);
-        ((TextView) listItem.findViewById(R.id.itemDateTime)).setText("Date: " + n.date + " Time: " + n.time);
-        if (originalBgDrawable != null)
-            originalBgDrawable = listItem.getBackground();
-//if (((CheckBox)listItem.findViewById(R.id.isDone)))
-        if (isOverdue(n)){
+        ((TextView) listItem.findViewById(R.id.itemDateTime)).setText("Due " + n.date + " at " + n.time);
+
+
+        if (n.done){
+            int color = ctx.prefs.getInt("doneNoteBackground", ContextCompat.getColor(ctx, R.color.light_red));
+            listItem.setBackgroundColor(Color.parseColor("#"+Integer.toHexString(color)));
+
+        } else if (isOverdue(n)){
             int color = ctx.prefs.getInt("overdueNoteBackground", ContextCompat.getColor(ctx, R.color.light_red));
             listItem.setBackgroundColor(Color.parseColor("#"+Integer.toHexString(color)));
 
         }else
-            listItem.setBackground(originalBgDrawable);
+            listItem.setBackground(null);
 
         return listItem ;
     }
 
     @RequiresApi(api = Build.VERSION_CODES.O)
     private boolean isOverdue(Note n) {
-        return LocalDateTime.of(n.date, n.time).isAfter(LocalDateTime.now());
+        return LocalDateTime.now().isAfter(LocalDateTime.of(n.date, n.time));
     }
 
     @Override
@@ -95,7 +103,7 @@ public class NotesAdapter extends BaseAdapter implements Filterable {
                 FilterResults results = new FilterResults();
                 ArrayList<Note> filteredNoteResults = new ArrayList<>();
 
-                if (constraint.equals("true"))
+                if (constraint.equals("false"))
                     notes.forEach(n -> {
                         if (!isOverdue(n))
                             filteredNoteResults.add(n);
@@ -111,5 +119,15 @@ public class NotesAdapter extends BaseAdapter implements Filterable {
         };
 
         return filter;
+    }
+
+    @Override
+    public void notifyDataSetChanged() {
+        super.notifyDataSetChanged();
+        ProgressDialog dialog = ProgressDialog.show(ctx, "", "Loading. Please wait...", false);
+        Backend b = Backend.login("x", "y", dialog::dismiss);
+        if (b == null){
+            Toast.makeText(ctx, "Account not found, please register!", Toast.LENGTH_LONG).show();
+        }
     }
 }
