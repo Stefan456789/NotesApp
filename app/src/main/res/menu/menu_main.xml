@@ -5,7 +5,8 @@
         android:id="@+id/syncNote"
         android:icon="@drawable/cloudsync"
         android:title="syncNote"
-        app:showAsAction="always|withText" />
+        android:visible="false"
+        app:showAsAction="always|withText" /><!-- TODO: set visible true - implement syncing -->
     <item
         android:id="@+id/saveNote"
         android:icon="@drawable/save"
