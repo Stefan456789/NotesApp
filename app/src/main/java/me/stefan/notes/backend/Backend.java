@@ -1,6 +1,8 @@
-package me.stefan.notes;
+package me.stefan.notes.backend;
 
 import java.util.List;
+
+import me.stefan.notes.Note;
 
 
 public class Backend {
@@ -19,17 +21,14 @@ public class Backend {
     public static Backend login(String username, String password, Runnable onLogin){
         Backend backend = null;
         ConnectionHandler.get("https://www.docsced.at/notesserver/todolists.php?username=" + username + "&password=" + password, (response) -> {
-            if (response != null){
-                int userid = Integer.parseInt(response);
-                if (userid != -1){
-                    onLogin.run();
-                }
-            }
+
+            onLogin.run();
         });
         return null;
     }
 
     public static Backend register(String name, String username, String password, Runnable onLogin){
+        String json = String.format("{\"username\": \"%s\", \"password\": \"%s\", \"name\": \"%s\"}", username, password, name);
         //{"username": "Stefan", "password": "wiesingers190147", "name": "Stefan Wiesinger"}
 
         return null;
@@ -39,8 +38,8 @@ public class Backend {
     public void sync(List<Note> notes){
         if (userid == -1){
 
-            String json = String.format("{\"username\": \"%s\", \"password\": \"%s\", \"name\": \"%s\"}", username, password, name);
 
+            String json = String.format("{\"username\": \"%s\", \"password\": \"%s\", \"name\": \"%s\"}", username, password, name);
             ConnectionHandler.post("https://www.docsced.at/notesserver/register.php", json, (response) -> {
                 if (response != null){
                     userid = Integer.parseInt(response);

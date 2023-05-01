@@ -1,4 +1,4 @@
-package me.stefan.notes;
+package me.stefan.notes.backend;
 
 import android.os.AsyncTask;
 
@@ -15,7 +15,6 @@ public class ConnectionHandler{
     public static void get(String url, Consumer<String> resultConsumer) {
         ConnectionTask connectionTask = new ConnectionTask(resultConsumer);
         connectionTask.execute(url, "GET");
-
 
     }
 
@@ -34,7 +33,6 @@ public class ConnectionHandler{
 
         @Override
         protected String doInBackground(String... strings) {
-            String username = strings [0];
             String sJson = "";
             try {
                 HttpURLConnection connection = (HttpURLConnection) new URL(strings[0]).openConnection();
@@ -60,7 +58,7 @@ public class ConnectionHandler{
                         stringBuilder .append(line) ;
                     }
                     sJson = stringBuilder.toString();
-                }
+                } else return null;
             } catch (IOException e) {
                 return null;
             }

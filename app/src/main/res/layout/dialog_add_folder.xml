@@ -10,21 +10,11 @@
     android:paddingBottom="5dp">
 
     <EditText
-        android:id="@+id/loginUsername"
+        android:id="@+id/editTextTitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:ems="10"
-        android:hint="Username"
-        android:inputType="textPersonName"
+        android:hint="Title"
+        android:inputType="textLongMessage|textMultiLine|textPersonName"
         android:minHeight="48dp" />
-
-    <EditText
-        android:id="@+id/loginPassword"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:ems="10"
-        android:hint="Password"
-        android:inputType="textPassword"
-        android:minHeight="48dp" />
-
 </LinearLayout>

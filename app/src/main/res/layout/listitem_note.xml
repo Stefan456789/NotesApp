@@ -4,20 +4,28 @@
     android:id="@+id/itemRoot"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="horizontal"
-    android:paddingStart="5dp">
+    android:orientation="horizontal">
+
+    <ImageView
+        android:id="@+id/noteIcon"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_weight="0"
+        app:srcCompat="@drawable/note" />
 
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="match_parent"
         android:layout_weight="1"
-        android:orientation="vertical">
+        android:orientation="vertical"
+        android:paddingLeft="5dp">
 
         <TextView
             android:id="@+id/itemMessage"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="NaN"
+            android:textColor="@android:color/primary_text_light"
             android:textSize="20sp" />
 
         <TextView
