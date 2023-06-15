@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Optional;
 
 public class NoteFolder implements NoteListviewItem{
-    public int id;
+    public int id = -1;
     public String name;
     public List<Note> notes = new ArrayList<>();
     public static final transient int ICON = R.drawable.folder;
