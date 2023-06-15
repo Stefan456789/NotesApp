@@ -1,55 +1,51 @@
 package me.stefan.notes.backend;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.function.Consumer;
 
 import me.stefan.notes.Note;
 
 
 public class Backend {
-    private int userid;
-    private String username = "";
-    private String password = "";
-    private String name = "";
+    private String username;
+    private String password;
 
 
-    private Backend(Backend backend, int userid, String username, String password) {
-        this.userid = userid;
+    private Backend(String username, String password) {
         this.username = username;
         this.password = password;
     }
 
-    public static Backend login(String username, String password, Runnable onLogin){
-        Backend backend = null;
+    public static void login(String username, String password, Consumer<Backend>... onLogin){
         ConnectionHandler.get("https://www.docsced.at/notesserver/todolists.php?username=" + username + "&password=" + password, (response) -> {
-
-            onLogin.run();
+            Backend backend = new Backend(username, password);
+            Arrays.stream(onLogin).forEach((cons) -> cons.accept(backend));
         });
-        return null;
     }
 
-    public static Backend register(String name, String username, String password, Runnable onLogin){
+    public static void register(String name, String username, String password, Consumer<Backend>... onLogin){
         String json = String.format("{\"username\": \"%s\", \"password\": \"%s\", \"name\": \"%s\"}", username, password, name);
-        //{"username": "Stefan", "password": "wiesingers190147", "name": "Stefan Wiesinger"}
 
-        return null;
+        ConnectionHandler.get("https://www.docsced.at/notesserver/todolists.php?username=" + username + "&password=" + password, (response) -> {
+            Backend backend = new Backend(username, password);
+            Arrays.stream(onLogin).forEach((cons) -> cons.accept(backend));
+        });
     }
 
 
-    public void sync(List<Note> notes){
-        if (userid == -1){
+    public void uploadNotes(List<Note> notes){
 
 
-            String json = String.format("{\"username\": \"%s\", \"password\": \"%s\", \"name\": \"%s\"}", username, password, name);
+            String json = String.format("{\"username\": \"%s\", \"password\": \"%s\"}", username, password);
             ConnectionHandler.post("https://www.docsced.at/notesserver/register.php", json, (response) -> {
-                if (response != null){
-                    userid = Integer.parseInt(response);
-                }
             });
-
-        }
     }
 
-    private void downloadNotes(List<Note> notes){
-
+    private void downloadNotes(List<Note> notes, Consumer<List<Note>>... onDownload){
+        ConnectionHandler.get("https://www.docsced.at/notesserver/todolists.php?username=" + username + "&password=" + password, (response) -> {
+            Backend backend = new Backend(username, password);
+            Arrays.stream(onDownload).forEach((cons) -> cons.accept());
+        });
     }
 }

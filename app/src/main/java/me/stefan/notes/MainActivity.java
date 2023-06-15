@@ -286,10 +286,13 @@ public class MainActivity extends AppCompatActivity {
                                         .setNegativeButton("Cancel", null)
                                         .setPositiveButton("Login", (dialogInterface1, i1) -> {
                                             ProgressDialog dialog = ProgressDialog.show(root.getContext(), "", "Loading. Please wait...", true);
-                                            backend = Backend.login(
+                                            Backend.login(
                                                     ((EditText)root.findViewById(R.id.loginUsername)).getText().toString(),
                                                     ((EditText)root.findViewById(R.id.loginPassword)).getText().toString(),
-                                                    dialog::dismiss);
+                                                    (newBackend)->{
+                                                        dialog.dismiss();
+                                                        backend = newBackend;
+                                                    });
                                         })
                                         .setView(root).show();
                             })
@@ -299,12 +302,23 @@ public class MainActivity extends AppCompatActivity {
                                         .setTitle("Register")
                                         .setNegativeButton("Cancel", null)
                                         .setPositiveButton("Login", (dialogInterface1, i1) -> {
+                                            String name = ((EditText)root.findViewById(R.id.registerName)).getText().toString();
+                                            String username = ((EditText)root.findViewById(R.id.registerUsername)).getText().toString();
+                                            String password = ((EditText)root.findViewById(R.id.registerPassword)).getText().toString();
+
+                                            if (name.isEmpty() || username.isEmpty() || password.isEmpty() || (name+username+password).matches(".*[^A-Za-z0-9]+.*")){
+                                                Toast.makeText(this, "Please fill all fields and only use numbers and letters!", Toast.LENGTH_LONG).show();
+                                                return;
+                                            }
+
                                             ProgressDialog dialog = ProgressDialog.show(root.getContext(), "", "Loading. Please wait...", true);
-                                            backend = Backend.register(
-                                                    ((EditText)root.findViewById(R.id.registerName)).getText().toString(),
-                                                    ((EditText)root.findViewById(R.id.registerUsername)).getText().toString(),
-                                                    ((EditText)root.findViewById(R.id.registerPassword)).getText().toString(),
-                                                    dialog::dismiss);
+
+                                            Backend.register(name, username, password,
+                                                    (newBackend)->{
+                                                dialog.dismiss();
+                                                backend = newBackend;
+                                            });
+
                                         })
                                         .setView(root)
                                         .show();
