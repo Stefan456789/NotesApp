@@ -7,6 +7,10 @@
         android:title="Show overdue notes"
         app:defaultValue="true" />
 
+    <CheckBoxPreference
+        android:defaultValue="true"
+        android:key="tryLogin"
+        android:title="Try to Login when starting the app" />
     <com.skydoves.colorpickerpreference.ColorPickerPreference
         android:key="doneNoteBackground"
         android:title="Done Note Color"

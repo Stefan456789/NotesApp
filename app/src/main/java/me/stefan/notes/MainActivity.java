@@ -8,13 +8,11 @@ import androidx.core.content.ContextCompat;
 import androidx.preference.PreferenceManager;
 
 import android.app.DatePickerDialog;
-import android.app.ProgressDialog;
 import android.app.TimePickerDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.content.pm.PackageManager;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Build;
@@ -46,19 +44,28 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalUnit;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.function.IntPredicate;
 import java.util.stream.Collectors;
 
 import me.stefan.notes.backend.Backend;
 
 public class MainActivity extends AppCompatActivity {
     public SharedPreferences prefs ;
-    public static final ArrayList<NoteFolder> notes = new ArrayList<>();
+    public static final List<NoteFolder> notes = new ArrayList<>();
     private static final String FILE_NAME = "save.json";
     private static final int REQUESTCODE_SETTINGS = 1;
     private static final int REQUESTCODE_EXTERNAL_STORAGE = 2;
+    public static final int REQUESTCODE_ALARM = 3;
     public static NotesAdapter adapter;
     public ListView list;
     private SharedPreferences.OnSharedPreferenceChangeListener preferencesChangeListener;
@@ -167,10 +174,10 @@ public class MainActivity extends AppCompatActivity {
                         showNoteDetails((Note) noteItem);
                     break;
                 case R.id.delete:
-                    if (selectedFolder == -1)
-                        notes.remove((NoteFolder) noteItem);
+                    if (((NoteListviewItem) noteItem).id() == -1)
+                        notes.remove(noteItem);
                     else
-                        notes.get(selectedFolder).notes.remove((Note) noteItem);
+                        ((NoteListviewItem) noteItem).setQueueDeletion(true);
                     applyFilter();
                     adapter.notifyDataSetChanged();
                     break;
@@ -221,7 +228,7 @@ public class MainActivity extends AppCompatActivity {
         TextView note = new TextView(this);
         note.setText("Note: " + n.note);
         TextView date = new TextView(this);
-        date.setText("Date: " + n.date);
+        date.setText("Date: " + n.getDateString());
         TextView time = new TextView(this);
         time.setText("Time: " + n.time);
         root.addView(note, params);
@@ -234,9 +241,12 @@ public class MainActivity extends AppCompatActivity {
                 .show();
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.O)
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.menu_main, menu);
+        if (backend == null && prefs.getBoolean("tryLogin", true))
+            login(menu.findItem(R.id.syncNote), prefs.getString("username", null), prefs.getString("password", null));
         return super.onCreateOptionsMenu(menu);
     }
 
@@ -252,6 +262,26 @@ public class MainActivity extends AppCompatActivity {
                     openNoteEditor(this, null);
                 break;
             case R.id.saveNote:
+                if (tryOnlineSync){
+                    if (backend == null ){
+                        tryOnlineSync = false;
+                        item.setIcon(ContextCompat.getDrawable(this, R.drawable.cloudsync));
+                        Toast.makeText(this, "You are not logged in!", Toast.LENGTH_LONG).show();
+                    } else
+                    if (!isNetworkAvailable()){
+                        tryOnlineSync = false;
+                        item.setIcon(ContextCompat.getDrawable(this, R.drawable.cloudsync));
+                        Toast.makeText(this, "No internet connection!", Toast.LENGTH_LONG).show();
+                        break;
+                    }else{
+                    backend.uploadNotes(notes, () -> {
+                        Toast.makeText(this, "Notes uploaded successfully!", Toast.LENGTH_LONG).show();
+                    }, () -> {
+                        Toast.makeText(this, "Notes upload failed!", Toast.LENGTH_LONG).show();
+                    });
+
+                    }
+                }
                 try {
                     OutputStreamWriter w = new OutputStreamWriter(new FileOutputStream(getExternalFilePath(FILE_NAME)));
                     w.write(new Gson().toJson(notes));
@@ -268,6 +298,7 @@ public class MainActivity extends AppCompatActivity {
                 break;
             case R.id.syncNote:
                 if (!isNetworkAvailable()){
+                    item.setIcon(ContextCompat.getDrawable(this, R.drawable.cloudsync));
                     Toast.makeText(this, "No internet connection!", Toast.LENGTH_LONG).show();
                     break;
                 }
@@ -285,14 +316,10 @@ public class MainActivity extends AppCompatActivity {
                                         .setTitle("Login")
                                         .setNegativeButton("Cancel", null)
                                         .setPositiveButton("Login", (dialogInterface1, i1) -> {
-                                            ProgressDialog dialog = ProgressDialog.show(root.getContext(), "", "Loading. Please wait...", true);
-                                            Backend.login(
-                                                    ((EditText)root.findViewById(R.id.loginUsername)).getText().toString(),
-                                                    ((EditText)root.findViewById(R.id.loginPassword)).getText().toString(),
-                                                    (newBackend)->{
-                                                        dialog.dismiss();
-                                                        backend = newBackend;
-                                                    });
+                                            String username = ((EditText)root.findViewById(R.id.loginUsername)).getText().toString();
+                                            String password = ((EditText)root.findViewById(R.id.loginPassword)).getText().toString();
+                                            item.setIcon(ContextCompat.getDrawable(this, R.drawable.cloudsyncblue));
+                                            login(item, username, password);
                                         })
                                         .setView(root).show();
                             })
@@ -311,20 +338,33 @@ public class MainActivity extends AppCompatActivity {
                                                 return;
                                             }
 
-                                            ProgressDialog dialog = ProgressDialog.show(root.getContext(), "", "Loading. Please wait...", true);
 
+                                            item.setIcon(ContextCompat.getDrawable(this, R.drawable.cloudsyncblue));
                                             Backend.register(name, username, password,
                                                     (newBackend)->{
-                                                dialog.dismiss();
-                                                backend = newBackend;
-                                            });
+                                                        prefs.edit().putString("username", username).apply();
+                                                        prefs.edit().putString("password", password).apply();
+                                                        item.setIcon(ContextCompat.getDrawable(this, R.drawable.cloudsyncgreen));
+                                                        backend = newBackend;
+                                                        backend.downloadNotes((newNotes)->{
+                                                            List<NoteFolder> f = newNotes.stream().filter(newNote -> notes.stream().noneMatch(oldNote -> oldNote.equals(newNote))).collect(Collectors.toList());
+                                                            notes.removeIf(note -> note.id != -1 && !newNotes.contains(note));
+                                                            notes.addAll(f);
+
+                                                            applyFilter();
+                                                            adapter.notifyDataSetChanged();
+                                                            Toast.makeText(this, "Registration successful!", Toast.LENGTH_LONG).show();
+                                                        });
+                                                    }, () -> {
+                                                        item.setIcon(ContextCompat.getDrawable(this, R.drawable.cloudsync));
+                                                        Toast.makeText(this, "Registration failed!", Toast.LENGTH_LONG).show();
+                                                    });
 
                                         })
                                         .setView(root)
                                         .show();
                             })
                             .show();
-                    item.setIcon(ContextCompat.getDrawable(this, R.drawable.cloudsyncgreen));
                 } else {
                     item.setIcon(ContextCompat.getDrawable(this, R.drawable.cloudsync));
                 }
@@ -333,6 +373,32 @@ public class MainActivity extends AppCompatActivity {
 
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.O)
+    private void login(MenuItem item, String username, String password) {
+        Backend.login(
+                username,
+                password,
+                (newBackend)->{
+                    tryOnlineSync = true;
+                    prefs.edit().putString("username", username).apply();
+                    prefs.edit().putString("password", password).apply();
+                    item.setIcon(ContextCompat.getDrawable(this, R.drawable.cloudsyncgreen));
+                    backend = newBackend;
+                    backend.downloadNotes((newNotes)->{
+                        List<NoteFolder> f = newNotes.stream().filter(x -> notes.stream().noneMatch(y -> y.equals(x))).collect(Collectors.toList());
+                        notes.removeIf(note -> note.id != -1 && !newNotes.contains(note));
+                        notes.addAll(f);
+
+                        applyFilter();
+                        adapter.notifyDataSetChanged();
+                        Toast.makeText(this, "Login successful!", Toast.LENGTH_LONG).show();
+                    });
+                }, () -> {
+                    item.setIcon(ContextCompat.getDrawable(this, R.drawable.cloudsync));
+                    Toast.makeText(this, "Login failed!", Toast.LENGTH_LONG).show();
+                });
     }
 
     private String getExternalFilePath(String fileName) {
@@ -387,7 +453,7 @@ public class MainActivity extends AppCompatActivity {
         View root = getLayoutInflater().inflate(R.layout.dialog_add_note, null);
         if (n != null){
             ((EditText)root.findViewById(R.id.editTextNote)).setText(n.note);
-            ((EditText)root.findViewById(R.id.editTextDate)).setText(n.date);
+            ((EditText)root.findViewById(R.id.editTextDate)).setText(n.getDateString());
             ((EditText)root.findViewById(R.id.editTextTime)).setText(n.time);
         }
 
@@ -474,4 +540,18 @@ public class MainActivity extends AppCompatActivity {
         NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
         return activeNetworkInfo != null && activeNetworkInfo.isConnected();
     }
+
+    @RequiresApi(api = Build.VERSION_CODES.O)
+    @Override
+    public void onBackPressed() {
+        if (selectedFolder == -1){
+            super.onBackPressed();
+        } else {
+            getSupportActionBar().setDisplayHomeAsUpEnabled(false);
+            selectedFolder = -1;
+            applyFilter();
+            adapter.notifyDataSetChanged();
+        }
+    }
+
 }

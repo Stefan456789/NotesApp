@@ -12,7 +12,6 @@ import android.widget.Filter;
 import android.widget.Filterable;
 import android.widget.ImageView;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.annotation.RequiresApi;
 import androidx.core.content.ContextCompat;
@@ -111,7 +110,7 @@ public class NotesAdapter extends BaseAdapter implements Filterable {
                 if (!showOverdue){
                     filteredNoteResults = filteredNoteResults.stream().filter(n -> !n.isOverdue()).collect(Collectors.toList());
                 }
-
+                filteredNoteResults = filteredNoteResults.stream().filter(n -> !n.queueDeletion()).collect(Collectors.toList());
                 results.count = filteredNoteResults.size();
                 results.values = filteredNoteResults;
 
@@ -122,14 +121,4 @@ public class NotesAdapter extends BaseAdapter implements Filterable {
         return filter;
     }
 
-    @Override
-    public void notifyDataSetChanged() {
-        super.notifyDataSetChanged();
-        /*
-        ProgressDialog dialog = ProgressDialog.show(ctx, "", "Loading. Please wait...", false);
-        Backend b = Backend.login("x", "y", dialog::dismiss);
-        if (b == null){
-            Toast.makeText(ctx, "Account not found, please register!", Toast.LENGTH_LONG).show();
-        }*/
-    }
 }
