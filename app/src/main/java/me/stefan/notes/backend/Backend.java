@@ -33,16 +33,20 @@ public class Backend {
     public static void login(String username, String password, Consumer<Backend> onSuccess, Runnable onFailure) {
 
         ConnectionHandler.get("https://www.docsced.at/notesserver/todolists.php?username=" + username + "&password=" + password, (response) -> {
-            Backend backend = new Backend(username, password);
-            backend.onFailure = onFailure;
-            onSuccess.accept(backend);
+            if (response != null){
+                Backend backend = new Backend(username, password);
+                backend.onFailure = onFailure;
+                onSuccess.accept(backend);
+            } else {
+                onFailure.run();
+            }
         });
     }
 
     public static void register(String name, String username, String password, Consumer<Backend> onSuccess, Runnable onFailure) {
         String json = String.format("{\"username\": \"%s\", \"password\": \"%s\", \"name\": \"%s\"}", username, password, name);
 
-        ConnectionHandler.get("https://www.docsced.at/notesserver/todolists.php?username=" + username + "&password=" + password, (response) -> {
+        ConnectionHandler.post("https://www.docsced.at/notesserver/register.php", json, (response) -> {
             Backend backend = new Backend(username, password);
             backend.onFailure = onFailure;
             onSuccess.accept(backend);

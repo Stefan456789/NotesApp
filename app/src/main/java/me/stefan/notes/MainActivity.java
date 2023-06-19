@@ -303,8 +303,7 @@ public class MainActivity extends AppCompatActivity {
                     break;
                 }
 
-                tryOnlineSync = !tryOnlineSync;
-                if (tryOnlineSync){
+                if (!tryOnlineSync){
 
                     new AlertDialog.Builder(this)
                             .setTitle("You are not logged in!")
@@ -354,8 +353,10 @@ public class MainActivity extends AppCompatActivity {
                                                             applyFilter();
                                                             adapter.notifyDataSetChanged();
                                                             Toast.makeText(this, "Registration successful!", Toast.LENGTH_LONG).show();
+                                                            tryOnlineSync = true;
                                                         });
                                                     }, () -> {
+                                                        backend = null;
                                                         item.setIcon(ContextCompat.getDrawable(this, R.drawable.cloudsync));
                                                         Toast.makeText(this, "Registration failed!", Toast.LENGTH_LONG).show();
                                                     });
@@ -366,6 +367,8 @@ public class MainActivity extends AppCompatActivity {
                             })
                             .show();
                 } else {
+                    tryOnlineSync = false;
+                    backend = null;
                     item.setIcon(ContextCompat.getDrawable(this, R.drawable.cloudsync));
                 }
 
@@ -394,8 +397,10 @@ public class MainActivity extends AppCompatActivity {
                         applyFilter();
                         adapter.notifyDataSetChanged();
                         Toast.makeText(this, "Login successful!", Toast.LENGTH_LONG).show();
+                        tryOnlineSync = true;
                     });
                 }, () -> {
+                    backend = null;
                     item.setIcon(ContextCompat.getDrawable(this, R.drawable.cloudsync));
                     Toast.makeText(this, "Login failed!", Toast.LENGTH_LONG).show();
                 });
